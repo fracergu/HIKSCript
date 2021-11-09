@@ -7,20 +7,18 @@ Se requieren los paquetes de **shodan** y **Pillow** para funcionar
 ```
 pip3 install shodan Pillow
 ```
-Si después de instalarlos hay errores de **TKinter**, significa que existía una instalación previa de **Pillow** no compatible. Para solucionarlo, hay que que quitar cualquier instalación de **Pillow** y reinstalarlo con **pip3**.
+Si después de instalarlos hay errores de **TKinter**, hay que instalar las librerías desde el gestor de paquetes de la distribución. 
 
-Por ejemplo en pip:
-```
-sudo pip3 uninstall Pillow
-```
 Distribuciones con **apt**
 ```
-sudo apt uninstall python3-pil
+sudo apt install python3-pil python3-tk python3-pil.imagetk
 ```
-Y finalmente reinstalar con
+Distribuciones con **dnf**
 ```
-pip3 install Pillow
+sudo dnf install python3-pillow python3-tkinter python3-pillow-tk
 ```
+
+
 ## Uso
 ```
 HIKScript.py [--shodan api_key | --file filename | --live ip_addr]
@@ -66,20 +64,18 @@ The **shodan** and **Pillow** packages are required to operate.
 ```
 pip3 install shodan Pillow
 ```
-If after installation there are **TKinter** errors, it means that there was a previous **Pillow** installation not compatible. To fix it, you have to remove any **Pillow** installation and reinstall it with **pip3**.
+Si después de instalarlos hay errores de **TKinter**, hay que instalar las librerías desde el gestor de paquetes de la distribución. 
+If after installation there are **TKinter** errors, the libraries must be installed from the distribution's package manager.
 
-For example in pip:
+**apt** based distributions.
 ```
-sudo pip3 uninstall Pillow
+sudo apt install python3-pil python3-tk python3-pil.imagetk
 ```
-Distributions with **apt**
+**dnf** based distributions.
 ```
-sudo apt uninstall python3-pil
+sudo dnf install python3-pillow python3-tkinter python3-pillow-tk
 ```
-And finally reinstall with
-```
-pip3 install Pillow
-```
+
 ## Usage
 ```
 HIKScript.py [--shodan api_key | --file filename | --live ip_addr]
