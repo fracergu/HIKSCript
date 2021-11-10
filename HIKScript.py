@@ -76,7 +76,8 @@ def handleInput(api, query, results):
             print('Please enter a number bigger than 100')
     else:
         if choice == 'ALL': 
-            getEntriesWithTokens(calcTokens(results['total']) * 100)
+            print('Obtaining all entries. This might take some minutes, please wait...')
+            getEntriesWithTokens(calcTokens(results['total']) * 100, api, query)
         elif choice == 'FREE':
             getFreeEntries(api, query)
         else:
