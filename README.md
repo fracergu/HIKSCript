@@ -1,115 +1,56 @@
 # HIKScript
+
 [English](#hikscript-en)
 
 Script escrito en Python para detectar y explotar la vulnerabilidad [ICSA-17-124-01](https://us-cert.cisa.gov/ics/advisories/ICSA-17-124-01), también conocida como Hikvision Camera Backdoor.
+
 ## Requisitos
+
 Se requieren los paquetes de **shodan** y **Pillow** para funcionar
+
 ```
 pip3 install shodan Pillow
 ```
-Si después de instalarlos hay errores de **TKinter**, hay que instalar las librerías desde el gestor de paquetes de la distribución. 
+
+Si después de instalarlos hay errores de **TKinter**, hay que instalar las librerías desde el gestor de paquetes de la distribución.
 
 Distribuciones con **apt**
+
 ```
 sudo apt install python3-pil python3-tk python3-pil.imagetk
 ```
+
 Distribuciones con **dnf**
+
 ```
 sudo dnf install python3-pillow python3-tkinter python3-pillow-tk
-```
-
-
-## Uso
-```
-HIKScript.py [--shodan api_key | --file filename | --live ip_addr]
-```
-### Parámetros del modo Shodan
-- **--shodan** o **-s** hace que el script adquiera las direcciones ip desde el buscador [Shodan.io](https://www.shodan.io/).
-- **--filter-city** o **-c** aplica un filtro de ciudad sobre la búsqueda.
-- **--filter-country** o **-o** aplica un filtro de país sobre la búsqueda. Debera ser un código de país ISO.
-- **--limit** o **-i** establece un límite de peticiones a la API. Si se utiliza, gastará un token por cada 100 entradas obtenidas.
-### Parámetros del modo File
-- **--file** o **-f** hace que el script adquiera las direcciones ip desde el fichero proporcionado. El formato de las IPs en el el fichero debe de ser **IP:PUERTO** por cada línea. Se pueden utilizar archivos generados por el parámetro **--save-vuln**
-### Parámetros comunes del modo File y modo Shodan
-- **--save-vuln** o **-v** guarda las IPs detectadas como vulnerables en un fichero tras la ejecución.
-- **--save-pictures** o **-p** guarda snapshots de las IPs detectadas como vulnerables tras la ejecución.
-- **--timeout** o **-t** configura el tiempo de timeout (por defecto 1 segundo) al comprobar la vulnerabilidad. Puede resultar útil aumentarlo si la IP objetivo se encuentra a larga distancia.
-- **--skip-vuln-check** o **-k** no realiza el chequeo de vulnerabilidades sobre las IPs introducidas. Puede resultar útil cuando cargamos un fichero generado por el parámetro **--save-vuln**.
-### Parámetros del modo Live
-- **--live** o **-l** abre una ventana nueva donde se ve el snapshot de una IP introducida con un refresco de 1 segundo.
-
-## Ejemplos de uso
-Uso de la búsqueda gratuita (hasta 100 entradas), de cámaras en la ciudad de Madrid. De esas hasta 100 cámaras comprobará cuales tienen la vulnerabilidad, guardará sus IPs en un fichero y guardará snapshot de cada una.
-```
-HIKScript.py -s API_KEY --filter-city Madrid --save-vuln --save-pictures
-```
-Se introduce un archivo con un listado de IPs, se comprueban cuales son vulnerables y se guardarán en un fichero, y un snapshot de cada una.
-```
-HIKScript.py -f IPs.txt -v -p
-```
-Se introduce un archivo con un listado de IPs, se salta el proceso de comprobación de vulnerabilidad, y se guarda un snapshot de cada una.
-```
-HIKScript.py -f ALREADY_CHECKED_IPs.txt --skip-vuln-check --save-pictures
-```
-Se abre una previsualización en vivo de la cámara con IP 127.0.0.1:80
-```
-HIKScript.py --live 127.0.0.1:80
 ```
 
 ---
+
 # HIKScript (EN)
+
 Script written in Python to detect and exploit the [ICSA-17-124-01](https://us-cert.cisa.gov/ics/advisories/ICSA-17-124-01) vulnerability, also known as Hikvision Camera Backdoor.
+
 ## Requeriments
+
 The **shodan** and **Pillow** packages are required to operate.
+
 ```
 pip3 install shodan Pillow
 ```
-Si después de instalarlos hay errores de **TKinter**, hay que instalar las librerías desde el gestor de paquetes de la distribución. 
+
+Si después de instalarlos hay errores de **TKinter**, hay que instalar las librerías desde el gestor de paquetes de la distribución.
 If after installation there are **TKinter** errors, the libraries must be installed from the distribution's package manager.
 
 **apt** based distributions.
+
 ```
 sudo apt install python3-pil python3-tk python3-pil.imagetk
 ```
+
 **dnf** based distributions.
+
 ```
 sudo dnf install python3-pillow python3-tkinter python3-pillow-tk
 ```
-
-## Usage
-```
-HIKScript.py [--shodan api_key | --file filename | --live ip_addr]
-```
-### Shodan mode parameters
-- **--shodan** or **-s** causes the script to acquire ip addresses from the [Shodan.io](https://www.shodan.io/) search engine .
-- **--filter-city** or **-c** applies a city filter on the search.
-- **--filter-country** or **-o** applies a country filter on the search. It must be a ISO country code.
-- **--limit** or **-i** sets an API request limit. If used, it will spend one token for every 100 entries (IPs) fetched.
-### File mode parameters
-- **--file** or **-f** causes the script to acquire the ip addresses from the provided file. The format of the IPs in the file must be **IP:PORT** for each line. Files generated by the **--save-vuln** parameter can be used.
-### Common File mode and Shodan mode parameters
-- **--save-vuln** or **-v** saves IPs detected as vulnerable in a file after execution.
-- **--save-pictures** or **-p** saves snapshots of IPs detected as vulnerable after execution.
-- **--timeout** or **-t** configures the timeout time (default 1 second) when checking the vulnerability. It may be useful to increase it if the target IP is located at a long distance.
-- **--skip-vuln-check** or **-k** does not perform the vulnerability check on the IPs entered. It may be useful when loading a file generated by the **--save-vuln** parameter.
-### Live mode parameters
-- **--live** or **-l** opens a new window where you can see the snapshot of an IP with a 1 second refresh.
-
-## Examples of use
-Using the free search (up to 100 entries), for cameras in the city of Madrid. Of those up to 100 cameras it will check which ones have the vulnerability, save their IPs in a file and save snapshot of each one.
-```
-HIKScript.py -s API_KEY --filter-city Madrid --save-vuln --save-pictures
-```
-A list of IPs is entered, which ones are vulnerable are checked and saved in a file, and a snapshot of each one.
-```
-HIKScript.py -f IPs.txt -v -p
-```
-A list of IPs is entered, the vulnerability checking process is skipped, and a snapshot of each is saved.
-```
-HIKScript.py -f ALREADY_CHECKED_IPs.txt --skip-vuln-check --save-pictures
-```
-A live preview of the camera with IP 127.0.0.1.1:80 is opened.
-```
-HIKScript.py --live 127.0.0.1.1:80
-```
-
