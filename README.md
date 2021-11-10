@@ -40,7 +40,6 @@ The **shodan** and **Pillow** packages are required to operate.
 pip3 install shodan Pillow
 ```
 
-Si después de instalarlos hay errores de **TKinter**, hay que instalar las librerías desde el gestor de paquetes de la distribución.
 If after installation there are **TKinter** errors, the libraries must be installed from the distribution's package manager.
 
 **apt** based distributions.
