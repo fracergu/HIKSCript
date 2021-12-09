@@ -23,6 +23,7 @@ custom_timeout = 1
 lock = threading.Semaphore(100)
 
 # Live variables
+is_live_mode = False
 live_target = ""
 live_timeout = 1
 show_image = True
@@ -236,6 +237,8 @@ def changeImage(widget, ip, root):
 def readArguments():
     # Number of arguments
     n = len(sys.argv)
+    if n == 1 :
+        help()
     # Arguments passed
     for i in range(1, n):
         #Excution type
@@ -285,6 +288,32 @@ def readArguments():
                 custom_timeout = int(sys.argv[i+1])
                 i+=1
                 continue
+
+        if sys.argv[i] == "--help" or sys.argv[i] == "-h":
+            help()
+            continue
+
+def help():
+    print('''
+Usage: 
+
+    ./HIKScript [option] [--timeout t]
+
+Options:
+
+    --gather | -g SHODAN_API_KEY [filters...]   #Gathers IPs from Shodan
+        Filters:
+            --filter-city       city_name       #Search IPs in a given city
+            --filter-country    ISO_CODE        #Search IPs in a given country
+            --limit             number          #Limits search results
+
+    --check | -c IP_LIST_FILE           #Check vulnerability of IPs in file
+
+    --live | -l IP:PORT                 #Shows live view of camera
+
+    --help | -h     #Shows this message
+
+    ''')
 
 def main():
     readArguments()
